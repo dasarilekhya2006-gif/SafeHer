@@ -954,10 +954,11 @@ def handle_general_exception(error):
 
 
 if __name__ == '__main__':
+    host = os.environ.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', 5000))
     print("=" * 65)
     print("  [SafeHer] Women Safety Navigation Backend Server")
-    print(f"  Running on: http://127.0.0.1:{port}")
+    print(f"  Running on: http://{host}:{port}")
     print("  Available Endpoints:")
     print("      * POST   /api/routes")
     print("      * GET    /api/safety-zones")
@@ -968,11 +969,13 @@ if __name__ == '__main__':
     print("      * POST   /api/contacts          [Add Contact]")
     print("      * PUT    /api/contacts/<id>     [Update Contact]")
     print("      * DELETE /api/contacts/<id>     [Delete Contact]")
+    print("      * POST   /api/call/emergency    [Automated Voice Call]")
     print("      * POST   /api/ml-predict        [ML Risk Classifier]")
     print("      * GET    /api/ml-info           [Model Evaluation]")
     print("      * GET    /api/health")
     print("=" * 65)
     sys.stdout.flush()
     debug_mode = os.environ.get('FLASK_DEBUG', '0').lower() in ('true', '1')
-    app.run(host='127.0.0.1', port=port, debug=debug_mode, use_reloader=False, threaded=True)
+    app.run(host=host, port=port, debug=debug_mode, use_reloader=False, threaded=True)
+
 
