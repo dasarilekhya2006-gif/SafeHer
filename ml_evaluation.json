@@ -1,0 +1,69 @@
+{
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2026-09-26T23:47:59.874151",
+  "total_samples": 300,
+  "train_samples": 240,
+  "test_samples": 60,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "cv_accuracy_mean": 0.9933,
+  "cv_accuracy_std": 0.0082,
+  "feature_importances": [
+    {
+      "feature": "lighting_pct",
+      "importance": 0.241
+    },
+    {
+      "feature": "historical_safety",
+      "importance": 0.2184
+    },
+    {
+      "feature": "police_dist_m",
+      "importance": 0.2072
+    },
+    {
+      "feature": "crowd_density",
+      "importance": 0.18
+    },
+    {
+      "feature": "crime_incidents",
+      "importance": 0.0986
+    },
+    {
+      "feature": "hour_of_day",
+      "importance": 0.0548
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.0
+    }
+  ],
+  "class_distribution": {
+    "LOW": 95,
+    "MEDIUM": 115,
+    "HIGH": 90
+  },
+  "features_used": [
+    "crime_incidents",
+    "lighting_pct",
+    "crowd_density",
+    "police_dist_m",
+    "hour_of_day",
+    "day_of_week",
+    "historical_safety"
+  ],
+  "target_classes": [
+    "LOW",
+    "MEDIUM",
+    "HIGH"
+  ],
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 8,
+    "min_samples_split": 4,
+    "min_samples_leaf": 2,
+    "class_weight": "balanced"
+  }
+}

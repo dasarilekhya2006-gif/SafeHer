@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SafeHer — Women's Safety Route Navigation</title>
+  <meta name="description" content="Choose the safest route home with real-time safety scores, street lighting analysis, crowd tracking, and emergency SOS support.">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Map Rendering -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-body">
+  <!-- Top App Navigation Bar -->
+  <header class="top-nav" id="topNav">
+    <div class="brand-group">
+      <div class="brand-icon-wrap">
+        <svg class="brand-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4" stroke="#10b981" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">SafeHer</h1>
+        <div class="safety-status-pill" id="backendHealthBadge" title="SafeHer Backend Service Status">
+          <span class="live-dot" id="backendStatusDot"></span>
+          <span id="backendStatusText">🟢 Backend Connected</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="nav-actions">
+      <button class="icon-btn" id="contactsToggleBtn" title="Emergency Contacts" aria-label="Manage Emergency Contacts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="chatToggleBtn" title="SafeHer AI Safety Assistant" aria-label="Open AI Safety Assistant">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="soundToggleBtn" title="Sound alerts toggle" aria-label="Toggle sound alerts">
+        <svg id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+      <button class="sos-pill-btn" id="quickSosTriggerBtn" aria-label="Emergency SOS">
+        <span class="sos-pulse"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="sos-btn-icon">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>SOS</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Route Search Header Card -->
+  <section class="trip-search-card" id="tripSearchCard">
+    <div class="journey-dots">
+      <div class="dot start-dot"></div>
+      <div class="dot-line"></div>
+      <div class="dot dest-dot"></div>
+    </div>
+    <div class="journey-inputs">
+      <div class="input-row">
+        <div class="input-row-header">
+          <span class="location-label">Start</span>
+          <button type="button" class="gps-chip-btn" id="autoLocateBtn" title="Detect my current location via GPS" aria-label="Use current location">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
+            </svg>
+            <span id="autoLocateText">GPS Auto-Detect</span>
+          </button>
+        </div>
+        <div class="input-field-wrap">
+          <input type="text" class="location-input" id="startLocationInput" value="Metro Station Central, Gate 3" placeholder="Enter start location or tap GPS..." autocomplete="off">
+          <button type="button" class="input-clear-btn hidden" id="clearStartBtn" title="Clear input">&times;</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="input-row">
+        <div class="input-row-header">
+          <span class="location-label">Destination</span>
+        </div>
+        <div class="input-field-wrap">
+          <input type="text" class="location-input" id="destLocationInput" value="Greenfield Heights, Sector 14" placeholder="Enter destination..." autocomplete="off">
+          <button type="button" class="input-clear-btn hidden" id="clearDestBtn" title="Clear input">&times;</button>
+        </div>
+      </div>
+    </div>
+    <div class="trip-search-actions">
+      <button class="swap-loc-btn" id="swapLocBtn" title="Swap Start and Destination" aria-label="Swap route endpoints">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/>
+        </svg>
+      </button>
+      <button class="search-routes-btn" id="applySearchBtn" title="Find safest routes" aria-label="Find routes">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="location-suggestions-dropdown hidden" id="locationSuggestions"></div>
+  </section>
+
+  <!-- Map Container (Real Interactive Leaflet Map) -->
+  <main class="map-viewport" id="mapViewport">
+    <div id="safetyMap" class="safety-map"></div>
+
+    <!-- Floating Map Quick Controls -->
+    <div class="map-floating-controls">
+      <button class="map-ctrl-btn active" id="toggleSafetyZonesBtn" title="Toggle Safe & Risky Zones on map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+          <path d="M2 12h20"></path>
+        </svg>
+        <span class="ctrl-tooltip">Safety Zones</span>
+      </button>
+
+      <button class="map-ctrl-btn active" id="togglePoliceBtn" title="Toggle Police Stations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M8 10h8"/>
+          <path d="M12 6v8"/>
+        </svg>
+        <span class="ctrl-tooltip">Police Stations</span>
+      </button>
+
+      <button class="map-ctrl-btn" id="recenterBtn" title="Recenter to current location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
+        </svg>
+        <span class="ctrl-tooltip">My Location</span>
+      </button>
+    </div>
+
+    <!-- Safety Map Legend Bar -->
+    <div class="safety-legend-bar" id="safetyLegendBar">
+      <div class="legend-item"><span class="legend-swatch safe-swatch"></span> High Safety Zone (Lit & Populated)</div>
+      <div class="legend-item"><span class="legend-swatch risky-swatch"></span> Risky Zone (Low Light / Isolated)</div>
+      <div class="legend-item"><span class="legend-swatch police-swatch"></span> Police Booth</div>
+    </div>
+  </main>
+
+  <!-- Live Active Navigation HUD (Visible during live simulation) -->
+  <aside class="nav-hud hidden" id="navHud">
+    <div class="nav-hud-top">
+      <div class="nav-turn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>
+      <div class="nav-instruction">
+        <span class="nav-dist-badge">In 180 m</span>
+        <h3 class="nav-road-name" id="hudNextAction">Turn right onto Grand Boulevard</h3>
+        <p class="nav-subtext" id="hudSafetyStatus">🛡️ Staying inside Well-Lit Commercial Zone</p>
+      </div>
+    </div>
+
+    <div class="nav-hud-bottom">
+      <div class="nav-metrics">
+        <div>
+          <span class="hud-metric-val" id="hudEta">13 min</span>
+          <span class="hud-metric-label">ETA (Safest)</span>
+        </div>
+        <div class="metric-separator"></div>
+        <div>
+          <span class="hud-metric-val" id="hudDist">3.1 km</span>
+          <span class="hud-metric-label">Remaining</span>
+        </div>
+        <div class="metric-separator"></div>
+        <div>
+          <span class="hud-metric-val safe-green" id="hudScore">94/100</span>
+          <span class="hud-metric-label">Safety Rating</span>
+        </div>
+      </div>
+
+      <div class="nav-hud-actions">
+        <button class="secondary-btn" id="simulateStepBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Advance Position</span>
+        </button>
+        <button class="exit-nav-btn" id="exitNavBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+          <span>End Route</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Route Selection & Safety Scorecard Bottom Sheet -->
+  <section class="safety-bottom-sheet" id="safetySheet">
+    <!-- Drawer Handle -->
+    <div class="sheet-handle-wrap" id="sheetHandle">
+      <div class="sheet-handle"></div>
+    </div>
+
+    <!-- Route Selector Tabs -->
+    <div class="route-tabs-container">
+      <div class="section-label-row">
+        <span class="section-badge">SELECT ROUTE</span>
+        <span class="section-note">Safest route recommended for solo travel</span>
+      </div>
+
+      <div class="routes-grid" id="routesGrid">
+        <!-- Route Cards will be rendered dynamically with full safety metadata -->
+      </div>
+    </div>
+
+    <!-- Route Safety Breakdown Panel -->
+    <div class="safety-score-panel" id="safetyScorePanel">
+      <div class="score-panel-header">
+        <div class="score-circle-wrap">
+          <div class="score-gauge" id="scoreGauge">
+            <span class="score-number" id="scoreNumber">94</span>
+            <span class="score-denom">/100</span>
+          </div>
+        </div>
+        <div class="score-header-info">
+          <div class="score-tier-badge" id="scoreTierBadge">
+            <span class="shield-mini">🛡️</span>
+            <span id="scoreTierText">SAFEST RECOMMENDED ROUTE</span>
+          </div>
+          <h2 class="selected-route-title" id="selectedRouteTitle">Main Boulevard Safe Corridor</h2>
+          <p class="score-summary-text" id="selectedRouteDesc">Optimal lighting, continuous foot traffic, and rapid access to emergency response stations.</p>
+        </div>
+      </div>
+
+      <!-- Safety Factors Metrics Grid -->
+      <div class="safety-factors-grid">
+        <!-- Street Lighting -->
+        <div class="factor-card" id="factorLighting">
+          <div class="factor-icon-wrap lighting-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+              <circle cx="12" cy="12" r="4"/>
+            </svg>
+          </div>
+          <div class="factor-details">
+            <div class="factor-title-row">
+              <span class="factor-name">Street Lighting</span>
+              <span class="factor-value" id="valLighting">96% Lit</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill fill-green" id="barLighting" style="width: 96%;"></div>
+            </div>
+            <span class="factor-sub" id="subLighting">High-intensity LED public lights</span>
+          </div>
+        </div>
+
+        <!-- Crime Index -->
+        <div class="factor-card" id="factorCrime">
+          <div class="factor-icon-wrap crime-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="factor-details">
+            <div class="factor-title-row">
+              <span class="factor-name">Crime Level</span>
+              <span class="factor-value" id="valCrime">Very Low</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill fill-green" id="barCrime" style="width: 15%;"></div>
+            </div>
+            <span class="factor-sub" id="subCrime">24/7 CCTV surveillance zone</span>
+          </div>
+        </div>
+
+        <!-- Crowd / Activity -->
+        <div class="factor-card" id="factorCrowd">
+          <div class="factor-icon-wrap crowd-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="factor-details">
+            <div class="factor-title-row">
+              <span class="factor-name">Crowded & Active</span>
+              <span class="factor-value" id="valCrowd">High Activity</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill fill-green" id="barCrowd" style="width: 90%;"></div>
+            </div>
+            <span class="factor-sub" id="subCrowd">Open pharmacies, cafes & transit stops</span>
+          </div>
+        </div>
+
+        <!-- Police Stations -->
+        <div class="factor-card" id="factorPolice">
+          <div class="factor-icon-wrap police-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polygon points="12 8 13.5 11 17 11.5 14.5 14 15 17.5 12 16 9 17.5 9.5 14 7 11.5 10.5 11 12 8"/>
+            </svg>
+          </div>
+          <div class="factor-details">
+            <div class="factor-title-row">
+              <span class="factor-name">Police / Safe Havens</span>
+              <span class="factor-value" id="valPolice">2 Booths (150m)</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill fill-green" id="barPolice" style="width: 95%;"></div>
+            </div>
+            <span class="factor-sub" id="subPolice">Direct emergency response within 2 mins</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ML Risk Prediction Panel (populated dynamically by JS) -->
+    <div id="mlPredictionPanel" style="
+      display: none;
+      margin: 0 16px 12px;
+      background: linear-gradient(135deg, #0F172A, #1E293B);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      font-family: Inter, sans-serif;
+    ">
+      <!-- Content injected by updateSafetyScorecard() -->
+    </div>
+
+    <!-- Bottom Fixed CTA Bar -->
+    <div class="sheet-cta-bar">
+      <button class="btn-share-trip" id="shareTripBtn" title="Share live location with contacts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/>
+          <circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        <span>Share Trip</span>
+      </button>
+
+      <button class="btn-start-route" id="startSafeRouteBtn">
+        <span class="btn-glow"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+        </svg>
+        <span id="startBtnText">Start Safe Route</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Emergency SOS Floating Quick Button (Always accessible) -->
+  <aside class="floating-sos-container" id="floatingSos">
+    <button class="main-sos-btn" id="mainSosBtn" aria-label="Emergency SOS button">
+      <div class="sos-ripple-rings">
+        <span></span>
+        <span></span>
+      </div>
+      <div class="sos-btn-content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="sos-icon">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span class="sos-label">SOS</span>
+      </div>
+    </button>
+  </aside>
+
+  <!-- Emergency SOS Full Modal -->
+  <dialog class="sos-modal" id="sosModal" aria-labelledby="sosModalTitle">
+    <div class="sos-modal-content">
+      <div class="sos-modal-header">
+        <div class="sos-alert-badge">EMERGENCY ASSISTANCE</div>
+        <button class="close-modal-btn" id="closeSosBtn" aria-label="Close emergency modal">&times;</button>
+      </div>
+
+      <div class="sos-countdown-card" id="sosCountdownCard">
+        <div class="countdown-circle">
+          <span class="countdown-val" id="sosCountdownVal">3</span>
+        </div>
+        <h3 id="sosModalTitle">Triggering Emergency Broadcast</h3>
+        <p class="sos-helper-text">Broadcasting your live GPS location & audio to verified emergency contacts and local patrol.</p>
+        <button class="cancel-sos-btn" id="cancelSosCountdownBtn">Tap to Cancel Alert</button>
+      </div>
+
+      <div class="sos-active-controls" id="sosActiveControls">
+        <!-- Emergency Mode Header Banner -->
+        <div class="emergency-mode-banner">
+          <div class="emergency-mode-title">🚨 EMERGENCY MODE</div>
+          <div class="sos-active-tag">SOS ACTIVE</div>
+        </div>
+
+        <!-- Live GPS Coordinates Box -->
+        <div class="sos-geo-box" id="sosGeoBox">
+          <div class="geo-status-indicator">
+            <span class="pulse-beacon" id="sosGpsPulse"></span>
+            <span id="sosGpsStatusText">Acquiring Current GPS...</span>
+          </div>
+          <p class="geo-coords" id="sosGeoCoords">Lat: Requesting... • Long: Requesting...</p>
+          <p class="geo-address" id="sosGeoAddress">Current GPS position will be acquired after countdown</p>
+          <div class="geo-accuracy-pill" id="sosGpsAccuracyPill">GPS Accuracy: Detecting...</div>
+        </div>
+
+        <!-- Nearest Police Station & Distance Box -->
+        <div class="sos-police-info-box" id="sosPoliceInfoBox">
+          <div class="sos-info-icon">👮</div>
+          <div class="sos-info-content">
+            <div class="sos-info-label">Nearest Police Station</div>
+            <div class="sos-info-val" id="sosNearestPoliceName">Locating nearest police post...</div>
+            <div class="sos-info-sub" id="sosNearestPoliceDist">Distance: Calculating...</div>
+          </div>
+        </div>
+
+        <!-- Notification Status Box -->
+        <div class="sos-notif-status-box" id="sosNotifStatusBox">
+          <div class="sos-info-icon">📲</div>
+          <div class="sos-info-content">
+            <div class="sos-info-label">Notification Status</div>
+            <div class="sos-notif-text" id="sosNotifStatusText">Notification service not configured.</div>
+          </div>
+        </div>
+
+        <!-- Emergency Contacts Preview Box -->
+        <div class="sos-contacts-preview-box" id="sosContactsPreviewBox">
+          <div class="sos-info-label">Emergency Contacts</div>
+          <div class="sos-contacts-chips-list" id="sosContactsChipsList">
+            <span class="contacts-loading-hint">Loading emergency contacts...</span>
+          </div>
+        </div>
+
+        <!-- Siren Alarm Synthesizer -->
+        <div class="siren-control-box">
+          <div class="siren-info">
+            <div class="siren-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="siren-title">High-Decibel Siren</div>
+              <div class="siren-desc">Deter attackers & attract immediate attention</div>
+            </div>
+          </div>
+          <button class="siren-toggle-btn" id="toggleSirenBtn">
+            <span id="sirenBtnText">Sound Siren</span>
+          </button>
+        </div>
+
+        <!-- Emergency Helplines Speed Dial Grid -->
+        <div class="sos-dials-grid">
+          <a href="tel:112" class="emergency-dial-btn police-dial" id="dialPoliceBtn">
+            <div class="dial-icon">👮</div>
+            <div class="dial-text">
+              <strong>CALL 112</strong>
+              <span>National Emergency Police</span>
+            </div>
+          </a>
+
+          <a href="tel:1091" class="emergency-dial-btn women-dial" id="dialHelplineBtn">
+            <div class="dial-icon">🛡️</div>
+            <div class="dial-text">
+              <strong>CALL 1091</strong>
+              <span>Women Safety Helpline</span>
+            </div>
+          </a>
+
+          <a href="tel:" class="emergency-dial-btn primary-contact-dial hidden" id="dialPrimaryContactBtn">
+            <div class="dial-icon">⭐</div>
+            <div class="dial-text">
+              <strong id="primaryContactBtnLabel">CALL PRIMARY CONTACT</strong>
+              <span id="primaryContactBtnSub">Tap to call primary contact</span>
+            </div>
+          </a>
+
+          <button class="emergency-dial-btn contact-dial" id="alertFamilyBtn">
+            <div class="dial-icon">📲</div>
+            <div class="dial-text">
+              <strong>Alert Emergency Contacts</strong>
+              <span id="contactsAlertStatus">Notify Contacts</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Cancel SOS Button -->
+        <div class="sos-cancel-container">
+          <button type="button" class="cancel-active-sos-btn" id="cancelActiveSosBtn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <span>CANCEL SOS</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- AI Safety Assistant Chat Modal -->
+  <dialog class="chat-modal" id="chatModal" aria-labelledby="chatModalTitle">
+    <div class="chat-modal-content">
+      <div class="chat-modal-header">
+        <div class="chat-brand">
+          <div class="chat-avatar-wrap">
+            <div class="chat-avatar">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <span class="chat-online-dot"></span>
+          </div>
+          <div>
+            <div class="chat-title-row">
+              <h3 id="chatModalTitle" class="chat-title">SafeHer AI Assistant</h3>
+              <span class="chat-backend-badge" id="chatBackendBadge">⚡ Live</span>
+            </div>
+            <p class="chat-subtitle" id="chatSubtitle">Powered by SafeHer AI Route &amp; Safety Engine</p>
+          </div>
+        </div>
+        <button class="close-modal-btn" id="closeChatBtn" aria-label="Close chat modal">&times;</button>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg bot-msg">
+          <div class="chat-bot-avatar-sm">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="chat-msg-body">
+            <div class="msg-bubble bot-bubble">
+              <p>👋 Hello! I am your <strong>SafeHer AI Assistant</strong>, connected in real-time to your route safety database.</p>
+              <p style="margin-top: 6px;">Ask me anything, such as:</p>
+              <ul class="welcome-list">
+                <li>Which route is safest right now?</li>
+                <li>Is this route safe at night?</li>
+                <li>Where is the nearest police station?</li>
+                <li>Why is a route considered risky?</li>
+              </ul>
+            </div>
+            <span class="msg-time">Just now</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-quick-prompts" id="chatQuickPrompts">
+        <button class="prompt-chip" data-query="Which route is safest?">🛡️ Safest Route</button>
+        <button class="prompt-chip" data-query="Is this route safe at night?">🌙 Night Safety</button>
+        <button class="prompt-chip" data-query="Where is the nearest police station?">👮 Nearest Police</button>
+        <button class="prompt-chip" data-query="Show me safer alternatives">🔄 Alternatives</button>
+        <button class="prompt-chip" data-query="Where are the safe zones?">📍 Safe Zones</button>
+        <button class="prompt-chip" data-query="What should I do if I feel unsafe?">🚨 Emergency Help</button>
+      </div>
+
+      <form class="chat-input-row" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Ask about routes, lighting, police..." autocomplete="off" required>
+        <button type="submit" id="sendChatBtn" class="chat-send-btn" aria-label="Send Message">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Emergency Contacts Modal -->
+  <dialog class="contacts-modal" id="contactsModal" aria-labelledby="contactsModalTitle">
+    <div class="contacts-modal-content">
+      <div class="contacts-modal-header">
+        <div class="contacts-brand">
+          <div class="contacts-avatar">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="contacts-title-row">
+              <h3 id="contactsModalTitle" class="contacts-title">Emergency Contacts</h3>
+              <span class="contacts-count-badge" id="contactsCountBadge">0 Contacts</span>
+            </div>
+            <p class="contacts-subtitle">Trusted guardians notified during emergencies</p>
+          </div>
+        </div>
+        <button class="close-modal-btn" id="closeContactsBtn" aria-label="Close emergency contacts modal">&times;</button>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="contacts-top-bar" id="contactsTopBar">
+        <button type="button" class="add-contact-btn" id="openAddContactBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>+ Add Emergency Contact</span>
+        </button>
+      </div>
+
+      <!-- Error / Status Notice Banner -->
+      <div class="contacts-error-banner hidden" id="contactsErrorBanner">
+        <span class="error-banner-icon">⚠️</span>
+        <span class="error-banner-text" id="contactsErrorBannerText">Unable to load emergency contacts. Please check your connection.</span>
+      </div>
+
+      <!-- Add / Edit Contact Form -->
+      <div class="contact-form-card hidden" id="contactFormContainer">
+        <div class="contact-form-header">
+          <h4 id="contactFormTitle">Add Emergency Contact</h4>
+          <button type="button" class="close-form-btn" id="cancelContactFormIconBtn" aria-label="Close form">&times;</button>
+        </div>
+
+        <form id="contactForm" novalidate autocomplete="off">
+          <input type="hidden" id="contactIdInput" value="">
+
+          <div class="contact-form-group">
+            <label for="contactNameInput">Name <span class="req-star">*</span></label>
+            <input type="text" id="contactNameInput" class="contact-form-input" placeholder="e.g. Mom, Priya Sharma" required>
+          </div>
+
+          <div class="contact-form-group">
+            <label for="contactPhoneInput">Phone Number <span class="req-star">*</span></label>
+            <input type="tel" id="contactPhoneInput" class="contact-form-input" placeholder="e.g. +91 98765 43210" required>
+            <span class="field-hint">Valid 10-digit Indian mobile number</span>
+          </div>
+
+          <div class="contact-form-group">
+            <label for="contactRelInput">Relationship <span class="req-star">*</span></label>
+            <input type="text" id="contactRelInput" class="contact-form-input" placeholder="e.g. Mother, Sister, Friend" required>
+          </div>
+
+          <div class="contact-checkbox-group">
+            <label class="contact-checkbox-label">
+              <input type="checkbox" id="contactIsPrimaryInput">
+              <span class="custom-checkbox-box"></span>
+              <div class="checkbox-desc">
+                <strong>Primary Contact</strong>
+                <span>Designate as first responder for alerts</span>
+              </div>
+            </label>
+
+            <label class="contact-checkbox-label">
+              <input type="checkbox" id="contactEnabledInput" checked>
+              <span class="custom-checkbox-box"></span>
+              <div class="checkbox-desc">
+                <strong>Enabled</strong>
+                <span>Active contact for emergency alerts</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="contact-form-error hidden" id="contactFormError"></div>
+
+          <div class="contact-form-actions">
+            <button type="button" class="cancel-contact-btn" id="cancelContactFormBtn">Cancel</button>
+            <button type="submit" class="save-contact-btn" id="saveContactBtn">Save Contact</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Delete Confirmation Banner -->
+      <div class="contact-delete-confirm hidden" id="contactDeleteConfirm">
+        <div class="delete-confirm-content">
+          <div class="delete-warning-icon">🗑️</div>
+          <div>
+            <p class="delete-confirm-title">Delete <strong id="deleteContactName">Contact</strong>?</p>
+            <p class="delete-confirm-sub">Are you sure you want to delete this emergency contact?</p>
+          </div>
+        </div>
+        <div class="delete-confirm-actions">
+          <button type="button" class="cancel-contact-btn btn-sm" id="cancelDeleteContactBtn">Cancel</button>
+          <button type="button" class="danger-btn btn-sm" id="confirmDeleteContactBtn">Delete Contact</button>
+        </div>
+      </div>
+
+      <!-- Contacts List -->
+      <div class="contacts-list" id="contactsListContainer">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Toast Notification Feedback -->
+  <div class="toast-notification hidden" id="toastNotification">
+    <span class="toast-icon">✓</span>
+    <span class="toast-msg" id="toastMsg">Location shared with trusted contacts</span>
+  </div>
+
+  <!-- Leaflet Library JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>

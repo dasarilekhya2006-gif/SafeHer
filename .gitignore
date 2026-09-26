@@ -1,0 +1,33 @@
+# Secrets and Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Database & User Data (Protect phone numbers & personal data)
+safety.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# OS-generated files & Logs
+.DS_Store
+Thumbs.db
+powershell.cmd
+*.log
+.vscode/
+.idea/
+
