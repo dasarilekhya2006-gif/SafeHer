@@ -103,12 +103,27 @@ class TwilioNotificationProvider(BaseNotificationProvider):
     """
 
     def __init__(self):
-        self.account_sid = os.getenv('TWILIO_ACCOUNT_SID') or os.getenv('SMS_API_KEY') or ''
-        self.auth_token = os.getenv('TWILIO_AUTH_TOKEN') or os.getenv('SMS_API_SECRET') or ''
-        self.from_number = os.getenv('TWILIO_FROM_NUMBER') or os.getenv('SMS_FROM_NUMBER') or ''
+        self.account_sid = (os.getenv('TWILIO_ACCOUNT_SID') or os.getenv('SMS_API_KEY') or '').strip()
+        self.auth_token = (os.getenv('TWILIO_AUTH_TOKEN') or os.getenv('SMS_API_SECRET') or '').strip()
+        self.api_key_sid = (os.getenv('TWILIO_API_KEY_SID') or '').strip()
+        self.api_key_secret = (os.getenv('TWILIO_API_KEY_SECRET') or '').strip()
+        self.from_number = (os.getenv('TWILIO_FROM_NUMBER') or os.getenv('SMS_FROM_NUMBER') or '').strip()
+
+        # If the user passed SK... as account_sid, adapt it as api_key_sid
+        if self.account_sid.startswith('SK') and not self.api_key_sid:
+            self.api_key_sid = self.account_sid
+            self.api_key_secret = self.auth_token
+            self.account_sid = (os.getenv('TWILIO_MAIN_ACCOUNT_SID') or '').strip()
+
+    def get_auth(self):
+        if self.api_key_sid and self.api_key_secret:
+            return (self.api_key_sid, self.api_key_secret)
+        return (self.account_sid, self.auth_token)
 
     def is_configured(self) -> bool:
-        return bool(self.account_sid and self.auth_token and self.from_number)
+        has_auth = bool(self.auth_token or (self.api_key_sid and self.api_key_secret))
+        has_account = bool(self.account_sid and self.account_sid.startswith('AC'))
+        return bool(has_account and has_auth and self.from_number)
 
     def send_sms(self, to_phone: str, message: str) -> Dict[str, Any]:
         if not self.is_configured():
@@ -116,7 +131,7 @@ class TwilioNotificationProvider(BaseNotificationProvider):
                 "success": False,
                 "status": "not_configured",
                 "message_id": None,
-                "error": "Twilio credentials incomplete in environment."
+                "error": "Twilio credentials incomplete in environment (requires AC... Account SID, Twilio Phone Number, and Auth Token / API Key)."
             }
 
         try:
@@ -127,7 +142,8 @@ class TwilioNotificationProvider(BaseNotificationProvider):
                 "To": to_phone,
                 "Body": message
             }
-            resp = requests.post(url, data=data, auth=(self.account_sid, self.auth_token), timeout=10)
+            resp = requests.post(url, data=data, auth=self.get_auth(), timeout=10)
+
 
             if resp.status_code in (200, 201):
                 res_data = resp.json()
@@ -179,7 +195,7 @@ class TwilioNotificationProvider(BaseNotificationProvider):
                 "To": to_phone,
                 "Twiml": twiml_content
             }
-            resp = requests.post(url, data=data, auth=(self.account_sid, self.auth_token), timeout=10)
+            resp = requests.post(url, data=data, auth=self.get_auth(), timeout=10)
 
             if resp.status_code in (200, 201):
                 res_data = resp.json()
@@ -348,6 +364,9 @@ def get_configured_provider() -> BaseNotificationProvider:
     load_env_file()
 
     provider_name = (os.getenv('SMS_PROVIDER') or '').strip().lower()
+
+    if provider_name in ('none', 'null', 'disabled', 'off'):
+        return NullNotificationProvider()
 
     if provider_name == 'twilio':
         provider = TwilioNotificationProvider()
