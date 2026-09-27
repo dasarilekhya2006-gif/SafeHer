@@ -1243,7 +1243,11 @@ class SafeHerApp {
     // Update Primary Contact Dial Button
     if (primaryBtn) {
       if (primaryContact && primaryContact.phone) {
-        primaryBtn.href = `tel:${primaryContact.phone}`;
+        const cleanPhone = primaryContact.phone.replace(/[^\d+]/g, '');
+        primaryBtn.href = `tel:${cleanPhone}`;
+        primaryBtn.setAttribute('data-phone', cleanPhone);
+        primaryBtn.setAttribute('data-name', primaryContact.name || 'Mom');
+        primaryBtn.setAttribute('data-display-phone', primaryContact.phone);
         primaryBtn.classList.remove('hidden');
         if (primaryLabel) {
           primaryLabel.innerText = `CALL ${primaryContact.name.toUpperCase()}`;
@@ -1673,16 +1677,25 @@ class SafeHerApp {
       }
       this.showToast(msg);
     } else if (status === 'failed') {
-      const msg = '❌ Emergency alert could not be sent to emergency contacts.';
+      let failMsg = '❌ Emergency alert could not be sent to emergency contacts.';
+      const firstDelivery = (notifications.details && notifications.details[0]) || (notifications.deliveries && notifications.deliveries[0]);
+      if (firstDelivery && firstDelivery.error) {
+        const rawErr = String(firstDelivery.error);
+        if (rawErr.includes('100 INR')) {
+          failMsg = '❌ Fast2SMS: ₹100 recharge required on fast2sms.com to unlock SMS API route.';
+        } else if (rawErr.includes('Fast2SMS API error:')) {
+          failMsg = `❌ ${rawErr.replace('Fast2SMS API error:', 'SMS Error:')}`;
+        }
+      }
       if (statusSpan) {
-        statusSpan.innerText = msg;
+        statusSpan.innerText = failMsg;
         statusSpan.style.color = '#EF4444';
       }
       if (notifStatusEl) {
-        notifStatusEl.innerText = msg;
+        notifStatusEl.innerText = failMsg;
         notifStatusEl.style.color = '#EF4444';
       }
-      this.showToast(msg);
+      this.showToast(failMsg, 8000);
     } else if (status === 'not_configured') {
       const msg = 'Notification service not configured.';
       if (statusSpan) {
@@ -2106,6 +2119,47 @@ class SafeHerApp {
     document.getElementById('toggleSirenBtn').addEventListener('click', () => {
       this.toggleSiren();
     });
+
+    // Call Primary Contact (Mom) Button
+    const dialPrimaryBtn = document.getElementById('dialPrimaryContactBtn');
+    if (dialPrimaryBtn) {
+      dialPrimaryBtn.addEventListener('click', (e) => {
+        const rawPhone = dialPrimaryBtn.getAttribute('data-phone') || '';
+        const displayPhone = dialPrimaryBtn.getAttribute('data-display-phone') || rawPhone;
+        const name = dialPrimaryBtn.getAttribute('data-name') || 'Mom';
+        const cleanPhone = rawPhone.replace(/[^\d+]/g, '');
+
+        if (!cleanPhone) {
+          e.preventDefault();
+          this.showToast('⚠️ No phone number available for primary contact.');
+          return;
+        }
+
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        if (isMobile) {
+          // On mobile phones, browser will launch the cellular dialer
+          this.showToast(`📞 Dialing ${name} (${displayPhone})...`);
+        } else {
+          // On desktop/PC browsers without a cellular SIM card
+          this.showToast(`📞 Calling ${name}: ${displayPhone}. (To dial from your SIM card, open SafeHer on your phone at http://${window.location.hostname}:5000)`, 9000);
+
+          // Also try triggering automated voice call via Twilio backend if configured
+          fetch('/api/call/emergency', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: cleanPhone,
+              name: name,
+              location: this.currentLocation
+            })
+          }).then(r => r.json()).then(data => {
+            if (data && data.status === 'success') {
+              this.showToast(`📞 Automated voice call placed to ${name}!`);
+            }
+          }).catch(() => {});
+        }
+      });
+    }
 
     // Alert Emergency Contacts (SMS Notification Service)
     document.getElementById('alertFamilyBtn').addEventListener('click', () => {
@@ -2600,6 +2654,8 @@ class SafeHerApp {
       const isPrimary = !!contact.is_primary;
       const isEnabled = !!contact.enabled;
 
+      const cleanPhone = (contact.phone || '').replace(/[^\d+]/g, '');
+
       html += `
         <div class="contact-card ${isPrimary ? 'is-primary' : ''} ${!isEnabled ? 'is-disabled' : ''}" data-id="${contact.id}">
           <div class="contact-card-header">
@@ -2616,7 +2672,7 @@ class SafeHerApp {
             <span class="contact-phone-text">${this.escapeHtml(contact.phone)}</span>
           </div>
           <div class="contact-card-actions">
-            <a href="tel:${this.escapeHtml(contact.phone)}" class="call-contact-btn" title="Call ${this.escapeHtml(contact.name)}">📞 Call</a>
+            <a href="tel:${cleanPhone}" data-clean-phone="${cleanPhone}" data-display-phone="${this.escapeHtml(contact.phone)}" data-name="${this.escapeHtml(contact.name)}" class="call-contact-btn" title="Call ${this.escapeHtml(contact.name)}">📞 Call</a>
             <button type="button" class="edit-contact-btn" data-id="${contact.id}">Edit</button>
             <button type="button" class="delete-contact-btn" data-id="${contact.id}">Delete</button>
           </div>
@@ -2627,6 +2683,25 @@ class SafeHerApp {
     container.innerHTML = html;
 
     // Attach card action listeners
+    container.querySelectorAll('.call-contact-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const clean = btn.getAttribute('data-clean-phone') || '';
+        const display = btn.getAttribute('data-display-phone') || clean;
+        const name = btn.getAttribute('data-name') || 'Contact';
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        if (isMobile) {
+          this.showToast(`📞 Dialing ${name} (${display})...`);
+        } else {
+          this.showToast(`📞 Calling ${name}: ${display}. (To call from your phone, open SafeHer on mobile at http://${window.location.hostname}:5000)`, 9000);
+          fetch('/api/call/emergency', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: clean, name: name })
+          }).catch(() => {});
+        }
+      });
+    });
+
     container.querySelectorAll('.edit-contact-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
